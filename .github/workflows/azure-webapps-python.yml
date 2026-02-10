@@ -1,0 +1,106 @@
+name: Build and Deploy to Azure Container Apps Job for ML tasks
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  id-token: write      # required for OIDC
+  contents: read       # so checkout can read the repo
+
+env:
+  ACR_NAME: iaqsacr          # without .azurecr.io
+  ACR_LOGIN_SERVER: iaqsacr.azurecr.io
+  RESOURCE_GROUP: fn-paygo-rg1
+  CONTAINERAPPS_ENV: conapps-env1
+  CONTAINERAPPS_JOB_NAME: fn-ml-job1
+  IMAGE_NAME: iaqs-ml-demo
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      # -----------------------------
+      # Login to Azure (OIDC)
+      # -----------------------------
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          # AZURE_CREDENTIALS is a JSON from `az ad sp create-for-rbac`
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Show subscription
+        run: az account show
+
+
+      # -----------------------------
+      # Login to ACR
+      # -----------------------------
+      - name: Docker login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # -----------------------------
+      # Build and push image
+      # -----------------------------
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+
+      # -----------------------------
+      # Deploy/update Container Apps Job
+      # -----------------------------
+      - name: Deploy Container Apps Job
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            # Check if job exists
+            set -e
+
+            IMAGE="${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${GITHUB_SHA}"
+
+            echo "Using image: $IMAGE"
+
+            # Create or update the job
+            # NOTE: You should have created the Container Apps Environment already.
+            if az containerapp job show \
+                  --name $CONTAINERAPPS_JOB_NAME \
+                  --resource-group $RESOURCE_GROUP >/dev/null 2>&1; then
+              echo "Updating existing job..."
+              az containerapp job update \
+                --name $CONTAINERAPPS_JOB_NAME \
+                --resource-group $RESOURCE_GROUP \
+                --image $IMAGE \
+                --yaml containerapp-job.yaml \
+                --parallelism 1
+            else
+              echo "Creating new job..."
+              az containerapp job create \
+                --name $CONTAINERAPPS_JOB_NAME \
+                --resource-group $RESOURCE_GROUP \
+                --environment $CONTAINERAPPS_ENV \
+                --image $IMAGE \
+                --trigger-type Manual \
+                --parallelism 1 \
+                --replica-timeout 3600 \
+                --replica-retry-limit 1 \
+                --replica-completion-count 1 \
+                --cpu 0.5 \
+                --memory 1Gi
+                --assign-identity \
+                --registration-server $ACR_LOGIN_SERVER
+            fi

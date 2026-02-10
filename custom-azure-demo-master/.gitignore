@@ -1,0 +1,14 @@
+# .gitignore
+# IDE files
+.idea/
+
+# Ignore scratch directory and all its contents (folder + subfolders)
+scratch/
+
+# Python bytecode and caches
+*.pyc
+__pycache__/
+**/__pycache__/**
+**/*.pyc
+
+
