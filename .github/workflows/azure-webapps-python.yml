@@ -14,8 +14,8 @@ env:
   ACR_LOGIN_SERVER: iaqsacr.azurecr.io
   RESOURCE_GROUP: fn-paygo-rg1
   CONTAINERAPPS_ENV: conapps-env1
-  CONTAINERAPPS_JOB_NAME: fn-ml-job1
-  IMAGE_NAME: iaqs-ml-demo
+  CONTAINERAPPS_JOB_NAME: pytorch-demo-job1
+  IMAGE_NAME: pytorch-demo
 
 jobs:
   build-and-deploy:
