@@ -1,0 +1,10 @@
+location: East US
+name: fn-conapps-job1
+
+properties:
+  environmentId: /subscriptions/a2811e5c-e2e3-4735-8e42-771128bf9010/resourceGroups/fn-paygo-rg1/providers/Microsoft.App/managedEnvironments/conapps-env1
+  configuration:
+
+    registries:
+      - server: iaqsacr.azurecr.io
+        identity: system
