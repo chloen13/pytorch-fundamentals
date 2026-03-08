@@ -2,12 +2,13 @@ import logging
 import numpy as np
 from scipy import stats
 import pandas as pd
+import os
 
 logger = logging.getLogger(__name__)
 
 def regression():
-    a = 3.14
-
+    a = float(os.environ["XX"])
+    print(f"read environment variable XX as: {a}")
     df = pd.read_csv("regression_input.csv")
 
     x = df["x"].to_numpy()
